@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Melodex</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Baskervville:ital@0;1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div id="app">
+        <div :class="{ 'blurred': isModalVisible }" class="app-container">
+            <h2 class="main-heading">Melodex</h2>
+
+            <div class="navbar">
+                <div class="nav-contents">
+                    <a href="#" class="nav-link" @click="showSection('home')">Home</a>
+                    <a v-if="isLoggedIn" href="#" class="nav-link" @click="showSection('discovery')">Discovery</a>
+                    <a href="#" class="nav-link" @click="showSection('contact')">Contact</a>
+                    <a v-if="!isLoggedIn" href="#" class="nav-link" @click="showSection('login')">Login / Signup</a>
+                </div>
+            </div>
+
+            <div class="main-content">
+                <div v-show="currentSection === 'contact'" class="contact">
+                    <div class="contact-content-container">
+                        <div class="contact-content">
+                            <h1 class="fade-in">Hello!</h1>
+                            <p class="fade-in delay-1">I'm Syed, the creator of this website, which is part of my final year project on music journaling through reviews and personalised recommendations.</p>
+                            <p class="fade-in delay-2">My objectives are to provide a social platform where users can track their listening history, keep up with what their friends are listening to, and receive personalised recommendations based on their preferences.</p>
+                            <p class="fade-in delay-3">If you have any inquiries or suggestions, please feel free to contact me through my email below!</p>
+                            <p class="fade-in delay-4"><i class="fas fa-envelope"></i>&nbsp&nbsp syednasiruddin145@gmail.com</p>
+                        </div>
+                    </div>
+                </div>
+                <div v-show="currentSection === 'home'" class="home">
+                    <div class="sidebar">
+                        <!-- search bar, it only appears in home and explore section  -->
+                        <div class="search-section fade-in delay-1" v-if="sidebarSection === 'home' || sidebarSection === 'explore' && isLoggedIn">
+                            <input type="text" v-model="searchQuery" class="search-bar" placeholder="Search (use @ for user search)...">
+                            <button class="search-button" @click="triggerSearch">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+
+                        <!-- the explore and home section posts container (loaded according to sidebar selection) -->
+                        
+                        <div v-if="sidebarSection === 'home' || sidebarSection === 'explore'" class="posts-container">
+                            <div v-for="post in (sidebarSection === 'home' ? homePosts : explorePosts)" :key="post._id" class="post-container" @click="showPostDetails(post._id)">
+                                <div class="post-user">
+                                    <p>{{ post.username }}</p>
+                                </div>
+                                <div class="post-content">                                
+                                    <div class="post-description-container">
+                                        <h2 class="post-album-title">{{ post.itemTitle }}</h2>
+                                        <h3 class="post-artist-name">By {{ post.artistName }}</h3>
+                                        <p class="post-description">{{ post.review }}</p>
+                                    </div>
+                                    <!-- the css vinyl animiation and the rating underneath it -->
+                                    <div class="post-image-rating" style="display: flex; justify-content: center; flex-direction: column; align-items: center;">
+                                        <div class="post-image-container" style="flex: 1; display: flex; justify-content: center;">
+                                            <div class="album-wrapper">
+                                                <div class="album-cover" 
+                                                     :style="{ backgroundImage: 'url(' + post.itemCover + ')' }"></div>
+                                                <div class="vinyl-record">
+                                                    <div class="vinyl-label" 
+                                                         :style="{ backgroundImage: 'url(' + post.itemCover + ')' }"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="rating">
+                                            <i v-for="n in post.rating" class="fas fa-star"></i>
+                                        </div>
+                                    </div>
+                                </div>                       
+                            </div>
+                        </div>
+
+                        <!-- Account Section -->
+                        <div v-if="sidebarSection === 'account'" class="account-section">
+                            <div class="account-header fade-in delay-1">
+                                <h2>{{ currentUser.username || "Account" }}</h2>
+                                <button @click="confirmLogout" class="account-logout-button">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                </button>
+                            </div>
+                            <div class="account-details fade-in delay-2">
+                                <div class="account-avatar">
+                                    <img v-if="isLoggedIn && currentUser.avatar" :src="currentUser.avatar" alt="User Avatar" class="avatar-image">
+                                    <i v-else class="fas fa-user-circle"></i>
+                                </div>
+                                <div class="account-info">
+                                    <div class="stats-text">
+                                        <p>followers</p>
+                                        <p>following</p>
+                                        <p>posts</p>
+                                    </div>
+                                    <div class="stats-numbers">
+                                        <p @click="showFollowsModal('followers')">{{ currentUser.followerCount }}</p>
+                                        <p @click="showFollowsModal('following')">{{ currentUser.followingCount }}</p>
+                                        <p>{{ currentUser.postCount }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="account-description fade-in delay-2">
+                                <p style="margin-left: 10px;">{{ currentUser.description }}</p>
+                            </div>
+                            <div class="account-actions fade-in delay-3">
+                                <button class="account-button" @click="showEditProfile">Edit Profile</button>
+                            </div>
+
+                            <div v-if="sidebarSection === 'account'" class='account-posts-container'>
+                                <div v-for="post in currentUser.posts" :key="post._id" class="post-container" @click="showPostDetails(post._id)">
+                                    <div class="post-user">
+                                        <p>{{ post.username }}</p>
+                                        <button @click="deletePost(post._id)" class="delete-post-button">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </div>
+                                    <div class="post-content">                                
+                                        <div class="post-description-container">
+                                            <h2 class="post-album-title">{{ post.itemTitle }}</h2>
+                                            <h3 class="post-artist-name">By {{ post.artistName }}</h3>
+                                            <p class="post-description">{{ post.review }}</p>
+                                        </div>
+                                        <div class="post-image-rating" style="display: flex; justify-content: center; flex-direction: column; align-items: center;">
+                                            <div class="post-image-container" style="flex: 1; display: flex; justify-content: center;">
+                                                <div class="album-wrapper">
+                                                    <div class="album-cover" 
+                                                         :style="{ backgroundImage: 'url(' + post.itemCover + ')' }"></div>
+                                                    <div class="vinyl-record">
+                                                        <div class="vinyl-label" 
+                                                             :style="{ backgroundImage: 'url(' + post.itemCover + ')' }"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="rating">
+                                                <i v-for="n in post.rating" class="fas fa-star"></i>
+                                            </div>
+                                        </div>
+                                    </div>                       
+                                </div>
+                            </div>    
+                        </div>
+                        
+
+                        <!-- Followers/Following Modal -->
+                        <div v-if="isFollowsModalVisible" class="modal active follows-modal">
+                            <div class="modal-content follows-modal-content">
+                                <div class="follows-modal-header">
+                                    <h3>{{ followsModalTitle }}</h3>
+                                    <button @click="closeFollowsModal" class="modal-close-button">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="follows-modal-body">
+                                    <div v-for="(user, index) in (followsModalType === 'followers' ? currentUser.followers : currentUser.following)" :key="index" class="follows-user-item">
+                                        <div class="follows-user-info">
+                                            <!-- <div class="follows-user-avatar">
+                                                <i class="fas fa-user-circle"></i>
+                                            </div> -->
+                                            <div class="follows-user-name">{{ user }}</div>
+                                        </div>
+                                        <button class="follows-action-button" @click="followsModalType === 'followers' ? removeFollower(user) : removeFollowing(user)">
+                                            <span v-if="followsModalType === 'followers'">Remove</span>
+                                            <span v-else>Unfollow</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="sidebarSection === 'home' && homePosts.length === 0" class="empty-home-posts fade-in delay-3">
+                            <p>follow a few people to see their posts here! </p>
+                        </div>
+
+                        <div v-if="sidebarSection === 'explore' && explorePosts.length === 0" class="empty-explore-posts fade-in delay-3">
+                            <p>nobody's posted yet :[ </p>
+                        </div>
+
+
+                        <div v-if="sidebarSection === 'notifications'" class="notifications-section">
+                            <h2 class="fade-in delay-1">Notifications</h2>
+                            <div class="notifications-container fade-in delay-2">
+                                <div v-if="currentUser.notifications.length === 0" class="no-notifications">
+                                    No notifications at this time.
+                                </div>
+                                <div v-else class="notifications-list">
+                                    <div v-for="notification in currentUser.notifications" :key="notification._id" class="notification-item">
+                                        <div v-if="notification.type === 'follow_request'">
+                                            <div class="request-notification">
+                                                <p>{{ notification.fromUser }} wants to follow you!</p>
+                                                <div style="display: flex; justify-content: center; gap: 10px;">
+                                                    <button @click="acceptFollowRequest(notification.fromUser)" class="notification-accept">Accept</button>
+                                                    <button @click="declineFollowRequest(notification.fromUser)" class="notification-reject">Reject</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div v-else-if="notification.type === 'like'">
+                                            <p>{{ notification.fromUser }} liked your post!</p>
+                                        </div>
+                                        <div v-else-if="notification.type === 'request_accepted'">
+                                            <p>{{ notification.fromUser }} accepted your follow request!</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>            
+                        
+                        
+                        
+                        <!-- new post section -->
+                        <div v-if="sidebarSection === 'newpost'" class="newpost-section">
+                            <h2 class="fade-in delay-1">Create New Post</h2>
+                            <form @submit.prevent="handleNewPost" class="newpost-form fade-in delay-2">
+                                <div class="form-content-layout">
+                                    <div class="input-section">
+                                        <div class="form-group">
+                                            <input type="text" class="post-form-input" placeholder="Album/Track Title">
+                                        </div>
+                                        <div class="form-group">
+                                            <input type="text" class="post-form-input" placeholder="Artist Name">
+                                        </div>
+                                        <div class="form-group">
+                                            <textarea class="form-input newpost-description" placeholder="Write your review..."></textarea>
+                                        </div>
+                                        <p v-if="newPostError" class="signup-error-message">{{ newPostError }}</p>
+                                        <button type="submit" class="form-button">Post</button>
+                                    </div>
+                                    <div class="preview-section">
+                                        <div class="album-preview-container">
+                                            <div class="album-preview" id="albumPreview">
+                                                <div class="preview-placeholder">
+                                                    <i class="fas fa-music"></i>
+                                                </div>
+                                            </div>
+                                        </div>                            
+                                        <div class="form-group">
+                                            <label class="upload-label">
+                                                <i class="fas fa-upload"></i> Upload
+                                                <input type="file" hidden @change="previewImage">
+                                            </label>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="rating-label">Rating:</label>
+                                            <div class="rating-select">
+                                                <i v-for="star in 5" :key="star" class="far fa-star" @click="setRating(star)"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+
+                        <div v-if="sidebarSection === 'edit-profile'" class="edit-profile-section">
+                            <div class="edit-profile-header">
+                                <button @click="sidebarSection = 'account'" class="back-button">
+                                    <i class="fas fa-arrow-left"></i>
+                                </button>
+                                <h2>Edit Profile</h2>
+                            </div>
+                            <div class="edit-profile-container">
+                                <div class="edit-avatar-section">
+                                    <div class="edit-avatar-preview">
+                                        <img v-if="editProfileData.avatarUrl" :src="editProfileData.avatarUrl" alt="Avatar Preview">
+                                        <i v-else class="fas fa-user-circle"></i>
+                                    </div>
+                                    <label class="upload-label">
+                                        <i class="fas fa-upload"></i> Change Avatar
+                                        <input type="file" hidden @change="previewProfileImage">
+                                    </label>
+                                </div>
+                                <div class="edit-profile-details">
+                                    <div class="form-group">
+                                        <label>Description</label>
+                                        <textarea 
+                                            v-model="editProfileData.description" 
+                                            class="form-input" 
+                                            placeholder="Tell us about yourself"
+                                            maxlength="200"
+                                        ></textarea>
+                                    </div>`
+                                    <div class="form-group">
+                                        <label>Account Privacy</label>
+                                        <div class="privacy-toggle">
+                                            <button 
+                                                @click="editProfileData.isPublic = true" 
+                                                :class="{ 'active': editProfileData.isPublic }"
+                                            >
+                                                Public
+                                            </button>
+                                            <button 
+                                                @click="editProfileData.isPublic = false" 
+                                                :class="{ 'active': !editProfileData.isPublic }"
+                                            >
+                                                Private
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <button @click="saveProfileChanges" class="form-button">Save Changes</button>
+                                </div>
+                            </div>
+                        </div>   
+
+                        <!-- Search Results Section -->
+                        <div v-if="sidebarSection === 'search-results'" class="search-results-section fade-in delay-1">
+                            <div style="display: flex; justify-content: start; align-items: center; gap: 4%;">
+                                <button @click="sidebarSection = 'home'; searchQuery = ''" class="back-button">
+                                    <i class="fas fa-arrow-left"></i>
+                                </button>
+                                <h3>Search Results for "{{searchQuery}}"</h3>
+                            </div>
+                            
+                            <div class="search-results-container fade-in delay-2">
+                                <!-- user search results -->
+                                <div v-if="userSearchResults.length > 0" class="users-container">
+                                    <div v-for="user in userSearchResults" :key="user.username" class="user-result-item">
+                                        <button class="user-info" @click="viewUserProfile(user.username)">
+                                            @{{ user.username }}
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- post search results -->
+                                <div v-if="searchResults.length > 0" class="search-posts-container">
+                                    <div v-for="post in searchResults" :key="post.id" class="search-post-container" @click="showPostDetails(post._id)">
+                                        <div class="post-user">
+                                            <p>{{ post.username }}</p>
+                                        </div>
+                                        <div class="post-content">                                
+                                            <div class="post-description-container">
+                                                <h2 class="post-album-title">{{ post.itemTitle }}</h2>
+                                                <h3 class="post-artist-name">By {{ post.artistName }}</h3>
+                                                <p class="post-description">{{ post.review }}</p>
+                                            </div>
+                                            <div class="post-image-rating" style="display: flex; justify-content: center; flex-direction: column; align-items: center;">
+                                                <div class="post-image-container">
+                                                    <div class="album-wrapper">
+                                                        <div class="album-cover" :style="{ backgroundImage: 'url(' + post.itemCover + ')' }"></div>
+                                                        <div class="vinyl-record">
+                                                            <div class="vinyl-label" :style="{ backgroundImage: 'url(' + post.itemCover + ')' }"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="rating">
+                                                    <i v-for="n in post.rating" class="fas fa-star"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- no results  -->
+                                <div v-if="searchResults.length === 0 && userSearchResults.length === 0" class="no-results">
+                                    No results found for "{{ searchQuery }}"
+                                </div>
+                            </div>
+                        </div>
+
+                        
+                        
+
+                        <div v-if="sidebarSection === 'user-profile'" class="user-profile-section">
+                            <div class="user-profile-header  fade-in delay-1">
+                                <button @click="sidebarSection = 'search-results'" class="back-button" style="margin-bottom: 0px; ">
+                                    <i class="fas fa-arrow-left"></i>
+                                </button>
+                                <h2>@{{ viewedUser.username }}</h2>
+                            </div>
+
+                            <div class="user-profile-details fade-in delay-2">
+                                <div class="user-avatar">
+                                    <i v-if="!viewedUser.avatarUrl" class="fas fa-user-circle"></i>
+                                    <img v-else :src="viewedUser.avatarUrl" alt="User Avatar">
+                                </div>
+                                <div class="user-profile-info">
+                                    <div class="user-follows-text">
+                                        <p>followers</p>
+                                        <p>following</p>
+                                        <p>posts</p>
+                                    </div>
+                                    <div class="user-follows-numbers">
+                                        <p>{{ viewedUser.followers }}</p>
+                                        <p>{{ viewedUser.following }}</p>
+                                        <p>{{ viewedUser.postCount }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="user-profile-description fade-in delay-2">
+                                <p style="padding: 15px 0px 0px 10px;">{{ viewedUser.description || "No description available" }}</p>
+                            </div>
+                            <div class="user-profile-actions fade-in delay-3">
+                                <button v-if="!viewedUser.isFollowing && !viewedUser.followRequested" 
+                                @click="sendFollowRequest" 
+                                class="follow-button">
+                                    {{ viewedUser.isPublic ? "Follow" : "Send Request" }}
+                                </button>
+                                <button v-if="viewedUser.isFollowing" @click="unfollowUser" class="following-button">Following</button>
+                                <button v-if="viewedUser.followRequested" @click="cancelFollowRequest" class="requested-button">Cancel Request</button>
+                            </div>
+                            <!-- only show the posts if the user is public -->
+                            <div v-if="viewedUser.isPublic || viewedUser.isFollowing" class="public-user-container">
+                                <div v-if="viewedUser.posts && viewedUser.posts.length > 0" class="user-posts-container">
+                                    <div v-for="post in viewedUser.posts" :key="post._id" class="user-post-container" @click="showPostDetails(post._id)">
+                                        <div class="post-content">                                
+                                            <div class="post-description-container">
+                                                <h2 class="post-album-title">{{ post.itemTitle }}</h2>
+                                                <h3 class="post-artist-name">By {{ post.artistName }}</h3>
+                                                <p class="post-description">{{ post.review }}</p>
+                                            </div>
+                                            <div class="post-image-rating" style="display: flex; justify-content: center; flex-direction: column; align-items: center;">
+                                                <div class="post-image-container">
+                                                    <div class="album-wrapper">
+                                                        <div class="album-cover" :style="{ backgroundImage: 'url(' + post.itemCover + ')' }"></div>
+                                                        <div class="vinyl-record">
+                                                            <div class="vinyl-label" :style="{ backgroundImage: 'url(' + post.itemCover + ')' }"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="rating">
+                                                    <i v-for="n in post.rating" class="fas fa-star"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-else class="no-posts">
+                                    <p>No posts yet</p>
+                                </div>
+                            </div>
+                            <div v-else class="private-account-message">
+                                <i class="fas fa-lock"></i>
+                                <p>This account is private</p>
+                                
+                            </div>
+                        </div>
+                    
+                        
+                        <!-- Bottom Navigation Bar - Only visible when logged in -->
+                        <div v-if="isLoggedIn" class="bottom-nav fade-in delay-2">
+                            <button @click="showSidebarSection('home')" class="bottom-nav-item" :class="{ active: sidebarSection === 'home' }">
+                                <i class="fas fa-home"></i>
+                            </button>
+                            <button @click="showSidebarSection('explore')" class="bottom-nav-item" :class="{ active: sidebarSection === 'explore' }">
+                                <i class="fas fa-compass"></i>
+                            </button>
+                            <button @click="showSidebarSection('newpost')" class="bottom-nav-item" :class="{ active: sidebarSection === 'newpost' }">
+                                <i class="fas fa-plus-circle"></i>
+                            </button>
+                            <button @click="showSidebarSection('notifications')" class="bottom-nav-item" :class="{ active: sidebarSection === 'notifications' }">
+                                <i class="fas fa-bell"></i>
+                            </button>
+                            <button @click="showSidebarSection('account')" class="bottom-nav-item" :class="{ active: sidebarSection === 'account' }">
+                                <div class="nav-avatar">
+                                    <img :src="currentUser.avatar">
+                                </div>
+                            </button>
+                        </div>                        
+                    </div>
+                    
+                    <div class="detailsbar">
+                        <div class="details-content">
+                            <div v-if="selectedPost" class="post-details">
+                                <button @click="clearSelectedPost" class="back-button">
+                                    <i class="fas fa-arrow-left"></i>
+                                </button>
+                                
+                                <div class="post-details-header">
+                                    <h2 class="post-details-title fade-in delay-1">{{ selectedPost.itemTitle }}</h2>
+                                    <h3 class="post-details-artist fade-in delay-2">By {{ selectedPost.artistName }}</h3>
+                                    <div class="post-details-meta">
+                                        <span class="post-details-user fade-in delay-3">Posted by {{ selectedPost.username }}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="post-details-image fade-in delay-4">
+                                    <div class="album-wrapper-large">
+                                        <div class="album-cover-large" :style="{ backgroundImage: 'url(' + selectedPost.itemCover + ')' }"></div>
+                                        <div class="vinyl-record-large">
+                                            <div class="vinyl-label-large" :style="{ backgroundImage: 'url(' + selectedPost.itemCover + ')' }"></div>
+                                        </div>
+                                    </div>
+                                    <span class="post-details-rating">
+                                        <i v-for="n in selectedPost.rating" class="fas fa-star"></i>
+                                    </span>
+                                </div>
+                                
+                                <div class="post-details-description fade-in delay-5">
+                                    <h3>Review</h3>
+                                    <p>{{ selectedPost.review }}</p>
+                                </div>
+                                
+                                <div v-if="isLoggedIn" class="post-details-actions fade-in delay-6">
+                                    <button class="action-button like-button-large" @click="toggleLikePost(selectedPost._id)">
+                                        <i :class="[selectedPost.likes.includes(currentUser.username) ? 'fas fa-heart' : 'far fa-heart']"></i>
+                                    </button>
+                                    <p class="post-details-likes-amount">{{selectedPost.likes.length}}</p>
+                                    <div class="add-comment">
+                                        <textarea v-model="newComment" class="comment-input" placeholder="Add a comment..."></textarea>
+                                        <button class="comment-submit" @click="submitComment(selectedPost._id)">Submit</button>
+                                    </div>
+                                </div>
+                                <div class="post-details-comments fade-in delay-6">
+                                    <div v-if="selectedPost.comments && selectedPost.comments.length > 0" class="comments-list">
+                                        <h3>Comments</h3>
+                                        <div v-for="(comment, index) in selectedPost.comments" :key="index" class="comment">
+                                            <div class="comment-user">{{ comment.username }}</div>
+                                            <div class="comment-content">{{ comment.text }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- about content  -->
+                            <div v-else class="about">
+                                <h1 class="fade-in delay-1">About</h1>
+                                <p class="fade-in delay-2"><b>Welcome to Melodex!</b> – the ultimate platform for music reviews,  
+                                    fostering an inclusive community of music enthusiasts dedicated to exploring, critiquing, and celebrating great music. 
+                                </p>
+                                <p class="fade-in delay-3">
+                                    Whether you're here to discover new tunes or share your insights on your favorite music, join us as we dive deep into the world of sound.
+                                </p>
+                                <br>
+                                <h2 class="fade-in delay-4">How it works</h2>
+                                <div style="width: 100%; display: flex; gap: 3%; align-items: center; padding-bottom: 50px;" class="fade-in delay-4">
+                                    <div style="display: flex; flex-direction: column; gap: 60%; height: 100%;">
+                                        <div style="margin-bottom: 40%; margin-top: 5%;">
+                                            <h4 style="margin-bottom: -6%;">Repeat</h4>
+                                            <p>Keep the cycle going! Music is endless.</p>
+                                        </div>
+                                        <div>
+                                            <h4 style="margin-bottom: -6%;"> Get Recommendations</h4>
+                                            <p>Get personalised recommendations based on your preferences.</p>
+                                        </div>
+                                    </div>
+                                    <img src="./imgs/howitworks.png" style="width: 335px; height: 335px; ">
+                                    <div style="display: flex; flex-direction: column; gap: 60%; height: 100%;  align-items: center; text-align: right; ">
+                                        <div style="margin-bottom: 40%; margin-top: 5%;">
+                                            <h4 style="margin-bottom: -6%;"> Discover Music</h4>
+                                            <p>Find music you resonate with.</p>
+                                        </div>
+                                        <div>
+                                            <h4 style="margin-bottom: -6%;"> Express Yourself</h4>
+                                            <p>Share your thoughts and emotions through reviews.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div v-show="currentSection === 'discovery'" class="discovery">
+                    <div class="discovery-sidebar">
+                        <div class="discovery-options-container fade-in delay-1" >
+                            <div v-for="option in discoveryOptions" :key="option.id" class="discovery-option-container" @click="showDiscoverySection(option.pageName)">
+                                <div class="discovery-content">                                
+                                    <div class="discovery-content-container">
+                                        <h2 class="discovery-title">{{ option.title}}</h2>
+                                        <p class="discovery-description">{{ option.description }}</p>
+                                    </div> 
+                                </div>                       
+                            </div>
+                        </div>
+                    </div>
+                    <div class="discovery-detailsbar">
+                        <div v-if="discoverySection === 'about'">
+                            <h2 class="fade-in delay-1">Discover New Music!</h2>
+                            <p class="fade-in delay-2">Find songs that match your preferences.</p>
+                        </div>
+
+                        <div class="fade-in delay-1" v-if="discoverySection === 'mood'">
+                            <div class="discovery-section">
+                                <div class="discovery-details-header">
+                                    <button @click="discoverySection = 'about'" class="back-button">
+                                        <i class="fas fa-arrow-left"></i>
+                                    </button>
+                                    <h2>Mood-Based Discovery</h2>
+                                </div>
+                        
+                                <div class="discovery-form-group">
+                                    <label>Mood Input Method</label>
+                                    <div class="mood-input-methods">
+                                        <label>
+                                            <input type="radio" v-model="moodForm.inputMethod" value="photo">
+                                            Upload/Take Photo
+                                        </label>
+                                        <label>
+                                            <input type="radio" v-model="moodForm.inputMethod" value="text">
+                                            Select Mood
+                                        </label>
+                                    </div>
+                                </div>
+                        
+                                <!-- photo upload section  -->
+                                <div v-if="moodForm.inputMethod === 'photo'" class="discovery-form-group">
+                                    <label>Capture or Upload Mood Photo</label>
+                                    <div class="photo-input-container">
+                                        <input type="file" @change="handlePhotoUpload" accept="image/*" id="moodPhotoUpload" class="mood-button">
+                                        <button @click="openWebcam" class="mood-button">
+                                            Open Webcam
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- webcam capture -->
+                                    <div v-if="showWebcam" class="webcam-modal">
+                                        <div class="webcam-content">
+                                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 400px;">
+                                                <p>try these expressions!</p>
+                                                <p style="font-size: 30px; margin-top: -4%;">🙂😠😨☹️</p>
+                                            </div>
+                                            
+                                            <video ref="webcamVideo" autoplay style="width: 400px; height: 300px; object-fit: cover; transform: scaleX(-1); margin-bottom: 10px; margin-top: -25px; border: 1px solid #fc764d;"></video>
+                                            <div class="webcam-actions">
+                                                <button class="mood-button" @click="capturePhoto">Capture</button>
+                                                <button class="mood-button" @click="closeWebcam">Cancel</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                        
+                                    <!-- Preview of the uploaded or captured image  -->
+                                    <div v-if="moodForm.capturedImage" class="image-preview">
+                                        <img :src="moodForm.capturedImage" alt="Mood Photo" style="border: 1px solid #fc764d; margin-bottom: 10px; width: 400px; height: 300px;">
+                                        <br>
+                                        <button @click="clearImage" class="mood-button">Clear Image</button>
+                                    </div>
+                                </div>
+                        
+                                <!-- text mood selection section -->
+                                <div v-if="moodForm.inputMethod === 'text'" class="discovery-form-group">
+                                    <label for="moodTextInput">Select Your Mood</label>
+                                    <select id="moodTextInput" v-model="moodForm.textMood">
+                                        <option v-for="mood in moods" :key="mood" :value="mood">
+                                            {{ mood.charAt(0).toUpperCase() + mood.slice(1) }}{{ mood === 'frightened' ? ' / Anxious' : '' }}
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <div class="discovery-form-group">
+                                    <label for="moodGenreFilter">Genre Filter (Optional)</label>
+                                    <select id="moodGenreFilter" v-model="moodForm.genreFilter">
+                                        <option value="">All Genres</option>
+                                        <option v-for="genre in genres" :key="genre" :value="genre">
+                                            {{ genre }}
+                                        </option>
+                                    </select>
+                                </div>
+                        
+                                <div class="discovery-form-group">
+                                    <label for="moodItemType">Item Type</label>
+                                    <select id="moodItemType" v-model="moodForm.itemType">
+                                        <option value="song">Songs</option>
+                                        <option value="playlist">Playlists</option>
+                                    </select>
+                                </div>
+                        
+                                <div class="discovery-form-group">
+                                    <label for="moodCount">Number of Items</label>
+                                    <input 
+                                        type="number" 
+                                        id="moodCount" 
+                                        v-model="moodForm.count" 
+                                        min="1" 
+                                        max="10"
+                                    >
+                                </div>
+
+
+                                <p v-if="discoveryErrorMessage" style="color: #fc4d5e">{{ discoveryErrorMessage }}</p>
+                                <button 
+                                    @click="submitMoodForm" 
+                                    :disabled="discoveryIsLoading" 
+                                    class="discovery-form-button"
+                                >
+                                    {{ discoveryIsLoading ? 'Processing...' : 'Discover by Mood' }}
+                                </button>
+                            </div>
+
+
+                            <div v-if="discoveryResults.length > 0 && discoveryResults[0].confidence" class="mood-result-summary">
+                                <h3 v-if>Discovered Mood: {{ discoveryResults[0].confidence.toFixed(2) }}% {{ discoveryResults[0].mood }}</h3>
+                                <p v-if="discoveryResults[0].mood == 'Happy'" class="mood-confidence">
+                                    Keep that smile up!
+                                </p>
+                                <p v-if="discoveryResults[0].mood == 'Sad'" class="mood-confidence">
+                                    Why the long face?
+                                </p>
+                                <p v-if="discoveryResults[0].mood == 'Angry'" class="mood-confidence">
+                                    Your a mean one, Mr. Grinch!
+                                </p>
+                                <p v-if="discoveryResults[0].mood == 'Fear'" class="mood-confidence">
+                                    What are we scared of?
+                                </p>
+                            </div>
+
+                            <!-- the song results section -->
+                            <div v-if="discoveryResultType === 'songs'" class="discovery-results-container">
+                                <div v-for="(item, index) in discoveryResults[0].items" :key="index" class="discovery-item-card">
+                                    <h3>{{ item.track_name }}</h3>
+                                    <p><strong>Artist:</strong> {{ item.artist.replaceAll(';', ', ') }}</p>
+                                    <p><strong>Album:</strong> {{ item.album }}</p>
+                                    <p><strong>Genre:</strong> {{ item.genre }}</p>
+                                    <p><strong>Popularity:</strong> {{ item.popularity }}/100</p>
+                                </div>
+                            </div>
+                            
+                            <!-- the playlist results section-->
+                            <div v-if="discoveryResultType === 'playlists'" class="discovery-results-container">
+                                <div v-for="(item, index) in discoveryResults[0].items" :key="index" class="discovery-item-card">
+                                    <h3>{{ item.playlist_name }}</h3>
+                                    <p><strong>Total Duration:</strong> {{ formatDuration(item.total_duration_ms) }}</p>
+                                    <div class="discovery-playlist-container">
+                                        <div v-for="(song, songIndex) in item.songs" :key="songIndex" class="discovery-playlist-song">
+                                            {{ song.artist.replaceAll(';', ', ') }} - {{ song.track_name }} ({{ formatDuration(song.duration_ms) }})
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="fade-in delay-1" v-if="discoverySection === 'activity'">
+                            <div class="discovery-section">
+                                <div class="discovery-details-header">
+                                    <button @click="discoverySection = 'about'" class="back-button">
+                                        <i class="fas fa-arrow-left"></i>
+                                    </button>
+                                    <h2>Activity-Based Discovery</h2>
+                                </div>
+                                
+                                <div class="discovery-form-group">
+                                    <label for="activitySelect">Activity</label>
+                                    <select id="activitySelect" v-model="activityForm.activity">
+                                        <option v-for="activity in activities" :key="activity" :value="activity">
+                                            {{ activity.charAt(0).toUpperCase() + activity.slice(1) }}
+                                        </option>
+                                    </select>
+                                </div>
+                                
+                                <div class="discovery-form-group">
+                                    <label for="itemType">Item Type</label>
+                                    <select id="itemType" v-model="activityForm.itemType">
+                                        <option value="song">Songs</option>
+                                        <option value="playlist">Playlists</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="discovery-form-group">
+                                    <label for="activityCount">Number of Items</label>
+                                    <input type="number" id="activityCount" v-model="activityForm.count" min="1" max="10">
+                                </div>
+                                
+                                <p v-if="discoveryErrorMessage" style="color: #fc4d5e">{{ discoveryErrorMessage }}</p>
+                                <button @click="submitActivityForm" :disabled="discoveryIsLoading" class="discovery-form-button">
+                                    {{ discoveryIsLoading ? 'Processing...' : 'Discover by Activity' }}
+                                </button>
+                            </div>
+                        
+                            <!-- the song results section -->
+                            <div v-if="discoveryResultType === 'songs'" class="discovery-results-container">
+                                <div v-for="(item, index) in discoveryResults" :key="index" class="discovery-item-card">
+                                    <h3>{{ item.track_name }}</h3>
+                                    <p><strong>Artist:</strong> {{ item.artist.replaceAll(';', ', ') }}</p>
+                                    <p><strong>Album:</strong> {{ item.album }}</p>
+                                    <p><strong>Genre:</strong> {{ item.genre }}</p>
+                                    <p><strong>Popularity:</strong> {{ item.popularity }}/100</p>
+                                </div>
+                            </div>
+                            
+                            <!-- the playlist results section -->
+                            <div v-if="discoveryResultType === 'playlists'" class="discovery-results-container">
+                                <div v-for="(item, index) in discoveryResults" :key="index" class="discovery-item-card">
+                                    <h3>{{ item.playlist_name }}</h3>
+                                    <p><strong>Total Duration:</strong> {{ formatDuration(item.total_duration_ms) }}</p>
+                                    <div class="discovery-playlist-container">
+                                        <div v-for="(song, songIndex) in item.songs" :key="songIndex" class="discovery-playlist-song">
+                                            {{ song.artist.replaceAll(';', ', ') }} - {{ song.track_name }} ({{ formatDuration(song.duration_ms) }})
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="fade-in delay-1" v-if="discoverySection === 'random'">
+                            <div class="discovery-section">
+                                <div class="discovery-details-header">
+                                    <button @click="discoverySection = 'about'" class="back-button">
+                                        <i class="fas fa-arrow-left"></i>
+                                    </button>
+                                    <h2>Random Discovery</h2>
+                                </div>
+                                <div class="discovery-form-group">
+                                    <label for="itemType">Item Type</label>
+                                    <select id="itemType" v-model="randomForm.itemType">
+                                        <option value="song">Song</option>
+                                        <option value="album">Album</option>
+                                        <option value="artist">Artist</option>
+                                        <option value="playlist">Playlist</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="discovery-form-group">
+                                    <label for="randomGenreFilter">Genre Filter</label>
+                                    <select id="randomGenreFilter" v-model="randomForm.genreFilter">
+                                        <option value="">All Genres</option>
+                                        <option v-for="genre in genres" :key="genre" :value="genre">
+                                            {{ genre }}
+                                        </option>
+                                    </select>
+                                </div>
+                                
+                                <div class="discovery-form-group">
+                                    <label for="randomCount">Number of Items</label>
+                                    <input type="number" id="randomCount" v-model="randomForm.count" min="1" max="10">
+                                </div>
+                                
+                                <button @click="submitRandomForm" :disabled="discoveryIsLoading" class="discovery-form-button">
+                                    {{ discoveryIsLoading ? 'Processing...' : 'Generate Random Items' }}
+                                </button>
+                            </div>
+
+                             <!-- the song results section -->
+                            <div v-if="discoveryResultType === 'songs'" class="discovery-results-container">
+                                <div v-for="(item, index) in discoveryResults" :key="index" class="discovery-item-card">
+                                    <h3>{{ item.track_name }}</h3>
+                                    <p><strong>Artist:</strong> {{ item.artist.replaceAll(';', ', ') }}</p>
+                                    <p><strong>Album:</strong> {{ item.album }}</p>
+                                    <p><strong>Genre:</strong> {{ item.genre }}</p>
+                                    <p><strong>Popularity:</strong> {{ item.popularity }}/100</p>
+                                    <p><strong>Duration:</strong> {{ formatDuration(item.duration_ms) }}</p>
+                                </div>
+                            </div>
+                            
+                            <!-- the album results section -->
+                            <div v-if="discoveryResultType === 'albums'" class="discovery-results-container">
+                                <div v-for="(item, index) in discoveryResults" :key="index" class="discovery-item-card">
+                                    <h3>{{ item.album_name }}</h3>
+                                    <p><strong>Artist:</strong> {{ item.artist.replaceAll(';', ', ') }}</p>
+                                    <p><strong>Genres:</strong> {{ item.genres.join(', ') }}</p>
+                                </div>
+                            </div>
+                            
+                            <!-- the artist results section -->
+                            <div v-if="discoveryResultType === 'artists'" class="discovery-results-container">
+                                <div v-for="(item, index) in discoveryResults" :key="index" class="discovery-item-card">
+                                    <h3>{{ item.artist.replaceAll(';', ', ') }}</h3>
+                                    <p><strong>Albums:</strong> {{ item.albums.join(', ') }}</p>
+                                    <p><strong>Genres:</strong> {{ item.genres.join(', ') }}</p>
+                                </div>
+                            </div>
+                            
+                            <!-- the playlist results section -->
+                            <div v-if="discoveryResultType === 'playlists'" class="discovery-results-container">
+                                <div v-for="(item, index) in discoveryResults" :key="index" class="discovery-item-card">
+                                    <h3>{{ item.playlist_name }}</h3>
+                                    <p><strong>Duration:</strong> {{ formatDuration(item.total_duration_ms) }}</p>
+                                    <div class="discovery-playlist-container">
+                                        <div v-for="(song, songIndex) in item.songs" :key="songIndex" class="discovery-playlist-song">
+                                            {{ song.artist.replaceAll(';', ', ') }} - {{ song.track_name }} ({{ formatDuration(song.duration_ms) }})
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="fade-in delay-1" v-if="discoverySection === 'search'">
+                            <div class="discovery-section">
+                                <div class="discovery-details-header">
+                                    <button @click="discoverySection = 'about'" class="back-button">
+                                        <i class="fas fa-arrow-left"></i>
+                                    </button>
+                                    <h2>Song Search & Analysis</h2>
+                                </div>
+                                <!-- the song search below allows the user to type a song name and results are shown below the input for the user to select from -->
+                                <div class="discovery-form-group">
+                                    <label for="discoverySearchQuery">Search for a Song</label>
+                                    <input type="text" id="discoverySearchQuery" v-model="searchForm.query" @input="searchSongs('search')" placeholder="Type to search...">
+                                </div>
+                                <div v-if="discoverySearchResults.length > 0" class="discovery-search-results">
+                                    <div v-for="song in discoverySearchResults" :key="song.track_id" 
+                                        class="discovery-search-item" @click="selectSong(song)">
+                                        {{ song.artist.replaceAll(';', ', ') }} - {{ song.track_name }}
+                                    </div>
+                                </div>
+
+                                <p v-if="discoveryErrorMessage" style="color: #fc4d5e">{{ discoveryErrorMessage }}</p>
+                                <button v-if="searchForm.selectedSong" @click="analyseSong" :disabled="discoveryIsLoading" class="discovery-form-button">
+                                    {{ discoveryIsLoading ? 'Analysing...' : 'Analyse Song' }}
+                                </button>
+                            </div>
+
+                            <div v-if="discoveryResultType == 'analysis'" class="discovery-results-container">
+                                <div class="discovery-item-card">
+                                    <h3>{{ discoveryResults.track_name }}</h3>
+                                    <p><strong>Artist:</strong> {{ discoveryResults.artist }}</p>
+                                    <p><strong>Album:</strong> {{ discoveryResults.album }}</p>
+                                    <p><strong>Genre:</strong> {{ discoveryResults.genre }}</p>
+                                    
+                                    
+                                    <div class="analysis-grid">
+                                        <div class="analysis-item">
+                                            <div class="analysis-title">Popularity</div>
+                                            <div class="analysis-description">How popular this track is on a scale of 0-100</div>
+                                            <div class="feature-bar-container">
+                                                <div class="feature-bar popularity-bar" :style="{ width: discoveryResults.popularity + '%' }"></div>
+                                                <div class="feature-value">{{ discoveryResults.popularity }}/100</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="analysis-item">
+                                            <div class="analysis-title">Duration</div>
+                                            <div class="analysis-description">Length of the track</div>
+                                            <div class="tempo-display">{{ formatDuration(discoveryResults.duration_ms) }}</div>
+                                        </div>
+                                        
+                                        <div class="analysis-item">
+                                            <div class="analysis-title">Explicit</div>
+                                            <div class="analysis-description">Contains explicit content</div>
+                                            <div class="key-display">{{ discoveryResults.explicit ? 'Yes' : 'No' }}</div>
+                                        </div>
+                                        
+                                        <div class="analysis-item">
+                                            <div class="analysis-title">Mode</div>
+                                            <div class="analysis-description">Major or minor scale</div>
+                                            <div class="mode-display">
+                                                <div :class="['mode-button', !discoveryResults.mode ? 'active' : '']">Minor</div>
+                                                <div :class="['mode-button', discoveryResults.mode ? 'active' : '']">Major</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <h4>Audio Features:</h4>
+                                    <div class="audio-features-container">
+                                        <div class="analysis-grid">
+                                            <!-- danceability -->
+                                            <div class="analysis-item">
+                                                <div class="analysis-title">Danceability</div>
+                                                <div class="analysis-description">How suitable a track is for dancing (0.0 to 1.0)</div>
+                                                <div class="feature-bar-container">
+                                                    <div class="feature-bar danceability-bar" :style="{ width: (discoveryResults.danceability * 100) + '%' }"></div>
+                                                    <div class="feature-value">{{ discoveryResults.danceability.toFixed(2) }}</div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- energy -->
+                                            <div class="analysis-item">
+                                                <div class="analysis-title">Energy</div>
+                                                <div class="analysis-description">Intensity and activity measure (0.0 to 1.0)</div>
+                                                <div class="feature-bar-container">
+                                                    <div class="feature-bar energy-bar" :style="{ width: (discoveryResults.energy * 100) + '%' }"></div>
+                                                    <div class="feature-value">{{ discoveryResults.energy.toFixed(2) }}</div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- the key -->
+                                            <div class="analysis-item">
+                                                <div class="analysis-title">Key</div>
+                                                <div class="analysis-description">The key the track is in (0-11 representing pitch class)</div>
+                                                <div class="key-display">{{ getKeyName(discoveryResults.key) }}</div>
+                                            </div>
+                                            
+                                            <!-- loudness -->
+                                            <div class="analysis-item">
+                                                <div class="analysis-title">Loudness</div>
+                                                <div class="analysis-description">Overall loudness in decibels (-60 to 0 dB)</div>
+                                                <div class="feature-bar-container">
+                                                    <div class="feature-bar loudness-bar" :style="{ width: calculateLoudnessWidth(discoveryResults.loudness) + '%' }"></div>
+                                                    <div class="feature-value">{{ discoveryResults.loudness.toFixed(2) }} dB</div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- speechiness -->
+                                            <div class="analysis-item">
+                                                <div class="analysis-title">Speechiness</div>
+                                                <div class="analysis-description">Presence of spoken words (0.0 to 1.0)</div>
+                                                <div class="feature-bar-container">
+                                                    <div class="feature-bar speechiness-bar" :style="{ width: (discoveryResults.speechiness * 100) + '%' }"></div>
+                                                    <div class="feature-value">{{ discoveryResults.speechiness.toFixed(2) }}</div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- acousticness -->
+                                            <div class="analysis-item">
+                                                <div class="analysis-title">Acousticness</div>
+                                                <div class="analysis-description">Confidence measure of acoustic quality (0.0 to 1.0)</div>
+                                                <div class="feature-bar-container">
+                                                    <div class="feature-bar acousticness-bar" :style="{ width: (discoveryResults.acousticness * 100) + '%' }"></div>
+                                                    <div class="feature-value">{{ discoveryResults.acousticness.toFixed(2) }}</div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- instrumentalness -->
+                                            <div class="analysis-item">
+                                                <div class="analysis-title">Instrumentalness</div>
+                                                <div class="analysis-description">Predicts if a track contains no vocals (0.0 to 1.0)</div>
+                                                <div class="feature-bar-container">
+                                                    <div class="feature-bar instrumentalness-bar" :style="{ width: (discoveryResults.instrumentalness * 100) + '%' }"></div>
+                                                    <div class="feature-value">{{ discoveryResults.instrumentalness.toFixed(2) }}</div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- liveness -->
+                                            <div class="analysis-item">
+                                                <div class="analysis-title">Liveness</div>
+                                                <div class="analysis-description">Detects presence of audience (0.0 to 1.0)</div>
+                                                <div class="feature-bar-container">
+                                                    <div class="feature-bar liveness-bar" :style="{ width: (discoveryResults.liveness * 100) + '%' }"></div>
+                                                    <div class="feature-value">{{ discoveryResults.liveness.toFixed(2) }}</div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- valence -->
+                                            <div class="analysis-item">
+                                                <div class="analysis-title">Valence</div>
+                                                <div class="analysis-description">Musical positiveness conveyed by a track (0.0 to 1.0)</div>
+                                                <div class="feature-bar-container">
+                                                    <div class="feature-bar valence-bar" :style="{ width: (discoveryResults.valence * 100) + '%' }"></div>
+                                                    <div class="feature-value">{{ discoveryResults.valence.toFixed(2) }}</div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- tempo -->
+                                            <div class="analysis-item">
+                                                <div class="analysis-title">Tempo</div>
+                                                <div class="analysis-description">Estimated tempo in BPM</div>
+                                                <div class="tempo-display">{{ Math.round(discoveryResults.tempo) }} BPM</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>    
+                        </div>
+
+                        <div class="fade-in delay-1" v-if="discoverySection === 'similar'">
+                            <div class="discovery-section">
+                                <div class="discovery-details-header">
+                                    <button @click="discoverySection = 'about'" class="back-button">
+                                        <i class="fas fa-arrow-left"></i>
+                                    </button>
+                                    <h2>Find Similar Songs</h2>
+                                </div>
+                                
+                                <div class="discovery-form-group">
+                                    <label for="similarSongSearch">Search for a Song</label>
+                                    <input type="text" id="similarSongSearch" v-model="similarForm.query" @input="searchSongs('similar')" placeholder="Enter song name...">
+                                    <div v-if="discoverySearchResults.length > 0" class="discovery-search-results">
+                                        <div v-for="(song, index) in discoverySearchResults" :key="song.track_id" @click="selectSongForSimilar(song)" class="discovery-search-item">
+                                            {{ song.artist.replaceAll(';', ', ') }} - {{ song.track_name }} 
+                                        </div>
+                                    </div>
+                                    <div v-if="similarForm.selectedSong" class="selected-song-display">
+                                        <p style="margin-top: 15px; margin-bottom: 15px;"><b>Selected:</b> {{ similarForm.selectedSong.track_name }} - {{ similarForm.selectedSong.artist.replaceAll(';', ', ')  }}</p> 
+                                    </div>
+                                </div>
+                                
+                                <div class="discovery-form-group">
+                                    <label for="similarCount">Number of Recommendations</label>
+                                    <input type="number" id="similarCount" v-model="similarForm.count" min="1" max="20">
+                                </div>
+                                
+                                <p v-if="discoveryErrorMessage" style="color: #fc4d5e">{{ discoveryErrorMessage }}</p>
+                                <button @click="findSimilarSongs" :disabled="discoveryIsLoading || !similarForm.selectedSong" class="discovery-form-button">
+                                    {{ discoveryIsLoading ? 'Searching...' : (!similarForm.selectedSong ? 'Choose a song' : 'Find Similar Songs') }}
+                                </button>
+                            </div>
+                            
+                            <div v-if="discoveryResultType === 'songs'" class="discovery-results-container">
+                                <h3>Songs Similar to "{{ similarForm.selectedSong?.track_name }}"</h3>
+                                <div v-for="(item, index) in discoveryResults" :key="item.track_id" class="discovery-item-card">
+                                    <h3>{{ item.track_name }}</h3>
+                                    <p><strong>Artist:</strong> {{ item.artist.replaceAll(';', ', ') }}</p>
+                                    <p><strong>Album:</strong> {{ item.album }}</p>
+                                    <p><strong>Genre:</strong> {{ item.genre }}</p>
+                                    <p><strong>Popularity:</strong> {{ item.popularity }}/100</p>
+                                    <p><strong>Duration:</strong> {{ formatDuration(item.duration_ms) }}</p>
+                                    <p><strong>Similarity Score:</strong> {{ item.similarity_score ? (item.similarity_score * 100).toFixed(1) + '%' : 'N/A' }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="discoverySection === 'obscure'">
+                            <div class="discovery-section">
+                                <div class="discovery-details-header">
+                                    <button @click="discoverySection = 'about'" class="back-button">
+                                        <i class="fas fa-arrow-left"></i>
+                                    </button>
+                                    <h2>Discover Obscure Songs</h2>
+                                </div>
+                                <div class="discovery-form-group">
+                                    <label for="obscureGenreFilter">Genre Filter (Optional)</label>
+                                    <select id="obscureGenreFilter" v-model="obscureForm.genreFilter">
+                                        <option value="">All Genres</option>
+                                        <option v-for="genre in genres" :key="genre" :value="genre">
+                                            {{ genre }}
+                                        </option>
+                                    </select>
+                                </div>
+                                
+                                <div class="discovery-form-group">
+                                    <label for="popularityThreshold">Max Popularity Threshold (0-100)</label>
+                                    <input type="number" id="popularityThreshold" v-model="obscureForm.popularityThreshold" min="1" max="100">
+                                </div>
+                                
+                                <div class="discovery-form-group">
+                                    <label for="obscureCount">Number of Songs</label>
+                                    <input type="number" id="obscureCount" v-model="obscureForm.count" min="1" max="20">
+                                </div>
+                                
+                                <p v-if="discoveryErrorMessage" style="color: #fc4d5e">{{ discoveryErrorMessage }}</p>
+                                <button @click="findObscureSongs" :disabled="discoveryIsLoading" class="discovery-form-button">
+                                    {{ discoveryIsLoading ? 'Searching...' : 'Find Obscure Songs' }}
+                                </button>
+
+                            </div>
+                            <div v-if="discoveryResultType === 'songs'" class="discovery-results-container">
+                                <div v-for="(item, index) in discoveryResults" :key="index" class="discovery-item-card">
+                                    <h3>{{ item.track_name }}</h3>
+                                    <p><strong>Artist:</strong> {{ item.artist.replaceAll(';', ', ') }}</p>
+                                    <p><strong>Album:</strong> {{ item.album }}</p>
+                                    <p><strong>Genre:</strong> {{ item.genre }}</p>
+                                    <p><strong>Popularity:</strong> {{ item.popularity }}/100</p>
+                                    <p><strong>Duration:</strong> {{ formatDuration(item.duration_ms) }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-show="currentSection === 'login' || currentSection === 'signup'" class="form-container">
+                    <div id="signlognav" class="fade-in delay-1">
+                        <a href="#" class="nav-link" @click="showSection('login')">Login </a>
+                        <a href="#" class="nav-link" @click="showSection('signup')">Signup</a>
+                    </div>
+                    <div :class="[currentSection === 'signup' ? 'signup-form-box' : 'form-box']" class="fade-in delay-2">
+                        <div v-if="currentSection === 'login'">
+                            <h3 class="form-title fade-in delay-1">Login</h3>
+                            <form @submit.prevent="handleLogin" class="fade-in delay-1">
+                                <div class="form-group">
+                                    <input type="text" v-model="loginUsername" class="form-input" placeholder="Username">
+                                </div>
+                                <div class="form-group">
+                                    <input type="password" v-model="loginPassword" class="form-input" placeholder="Password">
+                                </div>
+                                <p v-show="loginError" class="error-message">{{ loginErrorMessage }}</p>
+                                <button type="submit" class="form-button">Login</button>
+                            </form>
+                        </div>
+                        <div v-if="currentSection === 'signup'" class="fade-in delay-1">
+                            <h3 class="form-title">Sign Up</h3>
+                            <form @submit.prevent="handleSignup" class="signup-form-container">
+                                <div class="signup-left-column">
+                                    <div class="form-group profile-picture-upload">
+                                    <div class="profile-preview-container">
+                                        <div id="profilePreview" class="profile-preview">
+                                        <i class="fas fa-user-circle"></i>
+                                        </div>
+                                        <label class="upload-profile-label">
+                                        <i class="fas fa-upload"></i>
+                                        <input type="file" hidden @change="previewProfilePicture">
+                                        </label>
+                                    </div>
+                                    </div>
+                                
+                                    <div class="form-group">
+                                    <div class="privacy-toggle">
+                                        <button type="button" @click="signupPrivacy = 'public'" :class="{ 'active': signupPrivacy === 'public' }">Public</button>
+                                        <button type="button" @click="signupPrivacy = 'private'" :class="{ 'active': signupPrivacy === 'private' }">Private</button>
+                                    </div>
+                                    </div>
+                                
+                                    <div class="form-group">
+                                    <label>Profile Description</label>
+                                    <textarea v-model="signupDescription" class="form-input profile-description" placeholder="Tell us about yourself" maxlength="200"></textarea>
+                                    <small class="char-count">{{ signupDescription.length }}/200</small>
+                                    </div>
+                                </div>
+                              
+                                <div class="signup-right-column">
+                                    <div class="form-group">
+                                    <input type="text" v-model="username" class="form-input" placeholder="Username">
+                                    </div>
+                                    <div class="form-group">
+                                    <input type="password" v-model="password" class="form-input" placeholder="Password">
+                                    </div>
+                                    <div class="form-group">
+                                    <input type="password" v-model="confirmPassword" class="form-input" placeholder="Confirm Password">
+                                    </div>
+                                    
+                                    <p v-show="signupError" class="signup-error-message">{{ signupErrorMessage }}</p>
+                                    <button type="submit" class="form-button">Sign Up</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logout Confirmation -->
+        <div v-if="isModalVisible" class="modal active">
+            <div class="modal-content">
+                <h3>Are you sure you want to logout?</h3>
+                <div class="modal-buttons">
+                    <button @click="handleLogout" class="modal-button confirm">Yes</button>
+                    <button @click="closeModal" class="modal-button cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="./main.js"></script>
+</body>
+</html>
